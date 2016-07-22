@@ -67,18 +67,26 @@ fn render_output(output: WlcOutput) {
     let resolution = output.get_resolution().unwrap();
     let views = output.get_views();
     if views.is_empty() { return }
-
-    let mut toggle = false;
-    let mut y = 0;
-    let w = resolution.w / 2;
-    let h = resolution.h / cmp::max((views.len() + 1) / 2, 1) as u32;
-    for (i, view) in views.iter().enumerate() {
-        view.set_geometry(ResizeEdge::empty(), Geometry {
-            origin: Point { x: if toggle { w as i32 } else { 0 }, y: y },
-            size: Size { w: if !toggle && i == views.len() - 1 { resolution.w } else { w }, h: h }
+    let viewlen = views.len();
+    if viewlen == 1 {
+        views[0].set_geometry(ResizeEdge::empty(), Geometry {
+            origin: Point { x: 0, y: 0 },
+            size: resolution,
         });
-        y += if toggle { h as i32 } else { 0 };
-        toggle ^= true;
+    } else {
+        let w = resolution.w / 2;
+        let h0 = resolution.h / ((viewlen + 1) / 2) as u32;
+        let h1 = resolution.h / (viewlen / 2) as u32;
+        for (i, view) in views.iter().enumerate() {
+            let (x, h) = if i&1 == 1 { (w as i32, h1) } else { (0, h0) };
+            view.set_geometry(ResizeEdge::empty(), Geometry {
+                origin: Point {
+                    x: x,
+                    y: h as i32 * (i / 2) as i32,
+                },
+                size: Size { w: w, h: h },
+            });
+        }
     }
 }
 
@@ -193,7 +201,6 @@ fn main() {
     callback::pointer_motion(on_pointer_motion);
     rustwlc::log_set_default_handler();
     let run_fn = rustwlc::init().expect("Unable to initialize wlc!");
-    //Command::new("/usr/local/bin/wayst").spawn().expect("Error executing wayst");
     run_fn();
 }
 
