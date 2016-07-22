@@ -51,7 +51,7 @@ fn stop_interactive_action() {
             view.set_state(VIEW_RESIZING, false)
     }
 
-    (*comp).view = None;
+    comp.view = None;
     comp.edges = ResizeEdge::empty();
 }
 
@@ -59,7 +59,7 @@ fn get_topmost_view(output: WlcOutput, offset: usize) -> Option<WlcView> {
     let views = output.get_views();
     if views.is_empty() { None }
     else {
-        Some(views[(views.len() - 1 + offset) % views.len()].clone())
+        Some(views[(views.len() - 1 + offset) % views.len()])
     }
 }
 
@@ -77,8 +77,8 @@ fn render_output(output: WlcOutput) {
             origin: Point { x: if toggle { w as i32 } else { 0 }, y: y },
             size: Size { w: if !toggle && i == views.len() - 1 { resolution.w } else { w }, h: h }
         });
+        y += if toggle { h as i32 } else { 0 };
         toggle ^= true;
-        y = if y > 0 || !toggle { h as i32 } else { 0 };
     }
 }
 
@@ -146,12 +146,10 @@ extern fn on_pointer_button(view: WlcView, _time: u32, mods: &KeyboardModifiers,
         if !view.is_root() && mods.mods.contains(MOD_ALT) {
             view.focus();
             if mods.mods.contains(MOD_ALT) {
-                // Button left, we need to include linux/input.h somehow
-                if button == 0x110 {
-                    start_interactive_move(view);
-                }
-                if button == 0x111 {
-                    start_interactive_resize(view, ResizeEdge::empty());
+                match button {
+                    0x110 => start_interactive_move(view),
+                    0x111 => start_interactive_resize(view, ResizeEdge::empty()),
+                    _ => (),
                 }
             }
         }
@@ -165,24 +163,22 @@ extern fn on_pointer_button(view: WlcView, _time: u32, mods: &KeyboardModifiers,
 }
 extern fn on_pointer_motion(_in_view: WlcView, _time: u32, point: &Point) -> bool {
     rustwlc::input::pointer::set_position(point);
-    {
-        let comp = COMPOSITOR.read().unwrap();
-        if let Some(ref view) = comp.view {
-                let mut geo = view.get_geometry().unwrap();
-                if comp.edges.bits() != 0 {
-                    geo.size.w = cmp::max(point.x, 32) as u32;
-                    geo.size.h = cmp::max(point.y, 32) as u32;
-                    view.set_geometry(comp.edges, geo);
-                }
-                else {
-                    geo.origin = *point;
-                    view.set_geometry(ResizeEdge::empty(), geo);
-                }
-        }
-    }
-
     let comp = COMPOSITOR.read().unwrap();
-    comp.view.is_some()
+    if let Some(ref view) = comp.view {
+        let mut geo = view.get_geometry().unwrap();
+        if comp.edges.bits() != 0 {
+            geo.size.w = cmp::max(point.x, 32) as u32;
+            geo.size.h = cmp::max(point.y, 32) as u32;
+            view.set_geometry(comp.edges, geo);
+        }
+        else {
+            geo.origin = *point;
+            view.set_geometry(ResizeEdge::empty(), geo);
+        }
+        true
+    } else {
+        false
+    }
 }
 
 fn main() {
@@ -197,7 +193,7 @@ fn main() {
     callback::pointer_motion(on_pointer_motion);
     rustwlc::log_set_default_handler();
     let run_fn = rustwlc::init().expect("Unable to initialize wlc!");
-    Command::new("/usr/local/bin/wayst").spawn().expect("Error executing wayst");
+    //Command::new("/usr/local/bin/wayst").spawn().expect("Error executing wayst");
     run_fn();
 }
 
