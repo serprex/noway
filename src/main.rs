@@ -10,7 +10,7 @@ use rustwlc::xkb::keysyms;
 
 struct Compositor {
     pub view: Option<WlcView>,
-    pub edges: ResizeEdge
+    pub edges: ResizeEdge,
 }
 
 lazy_static! {
@@ -24,7 +24,6 @@ fn start_interactive_action(view: WlcView) -> bool {
         false
     } else {
         comp.view = Some(view);
-
         view.bring_to_front();
         true
     }
@@ -44,23 +43,13 @@ fn start_interactive_resize(view: WlcView, _: ResizeEdge) {
 
 fn stop_interactive_action() {
     let mut comp = COMPOSITOR.write().unwrap();
-
     match comp.view {
         None => return,
         Some(ref view) =>
             view.set_state(VIEW_RESIZING, false)
     }
-
     comp.view = None;
     comp.edges = ResizeEdge::empty();
-}
-
-fn get_topmost_view(output: WlcOutput, offset: usize) -> Option<WlcView> {
-    let views = output.get_views();
-    if views.is_empty() { None }
-    else {
-        Some(views[(views.len() - 1 + offset) % views.len()])
-    }
 }
 
 fn render_output(output: WlcOutput) {
@@ -103,8 +92,9 @@ extern fn on_view_created(view: WlcView) -> bool {
 }
 
 extern fn on_view_destroyed(view: WlcView) {
-    if let Some(top_view) = get_topmost_view(view.get_output(), 0) {
-        top_view.focus();
+    let views = view.get_output().get_views();
+    if !views.is_empty() {
+        views.last().unwrap().focus();
     }
     render_output(view.get_output());
 }
@@ -130,9 +120,18 @@ extern fn on_keyboard_key(view: WlcView, _time: u32, mods: &KeyboardModifiers, k
                     view.close();
                 }
             },
-            keysyms::KEY_Down => {
+            keysyms::KEY_Down | keysyms::KEY_Left => {
                 view.send_to_back();
-                get_topmost_view(view.get_output(), 0).unwrap().focus();
+                let views = view.get_output().get_views();
+                if views.len() < 2 { return true }
+                views.last().unwrap().focus();
+            },
+            keysyms::KEY_Up | keysyms::KEY_Right => {
+                let views = view.get_output().get_views();
+                if views.len() < 2 { return true }
+                let first = views.first().unwrap();
+                first.bring_to_front();
+                first.focus();
             },
             keysyms::KEY_o => {
                 terminate();
@@ -165,7 +164,6 @@ extern fn on_pointer_button(view: WlcView, _time: u32, mods: &KeyboardModifiers,
     else {
         stop_interactive_action();
     }
-
     let comp = COMPOSITOR.read().unwrap();
     comp.view.is_some()
 }
