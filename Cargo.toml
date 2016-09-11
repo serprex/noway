@@ -4,5 +4,5 @@ version = "0.1.0"
 authors = ["serprex <>"]
 
 [dependencies]
-rustwlc = { path = "rust-wlc", version = "*" }
+rustwlc = "0.5"
 lazy_static = "0.2"

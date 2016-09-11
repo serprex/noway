@@ -33,7 +33,7 @@ fn start_interactive_move(view: WlcView) {
     start_interactive_action(view);
 }
 
-fn start_interactive_resize(view: WlcView, _: ResizeEdge) {
+fn start_interactive_resize(view: WlcView) {
     if start_interactive_action(view) {
         let mut comp = COMPOSITOR.write().unwrap();
         comp.edges = RESIZE_RIGHT | RESIZE_BOTTOM;
@@ -107,12 +107,12 @@ extern fn on_view_request_move(view: WlcView, _: &Point) {
     start_interactive_move(view);
 }
 
-extern fn on_view_request_resize(view: WlcView, edges: ResizeEdge, _: &Point) {
-    start_interactive_resize(view, edges);
+extern fn on_view_request_resize(view: WlcView, _: ResizeEdge, _: &Point) {
+    start_interactive_resize(view);
 }
 
 extern fn on_keyboard_key(view: WlcView, _time: u32, mods: &KeyboardModifiers, key: u32, state: KeyState) -> bool {
-    let sym = input::keyboard::get_keysym_for_key(key, mods.mods);
+    let sym = input::keyboard::get_keysym_for_key(key, *mods);
     if state == KeyState::Pressed && mods.mods == MOD_ALT {
         match sym {
             keysyms::KEY_d => {
@@ -155,7 +155,7 @@ extern fn on_pointer_button(view: WlcView, _time: u32, mods: &KeyboardModifiers,
             if mods.mods.contains(MOD_ALT) {
                 match button {
                     0x110 => start_interactive_move(view),
-                    0x111 => start_interactive_resize(view, ResizeEdge::empty()),
+                    0x111 => start_interactive_resize(view),
                     _ => (),
                 }
             }
@@ -168,19 +168,18 @@ extern fn on_pointer_button(view: WlcView, _time: u32, mods: &KeyboardModifiers,
     comp.view.is_some()
 }
 extern fn on_pointer_motion(_in_view: WlcView, _time: u32, point: &Point) -> bool {
-    rustwlc::input::pointer::set_position(point);
+    rustwlc::input::pointer::set_position(*point);
     let comp = COMPOSITOR.read().unwrap();
     if let Some(ref view) = comp.view {
         let mut geo = view.get_geometry().unwrap();
         if comp.edges.bits() != 0 {
             geo.size.w = cmp::max(point.x, 32) as u32;
             geo.size.h = cmp::max(point.y, 32) as u32;
-            view.set_geometry(comp.edges, geo);
         }
         else {
             geo.origin = *point;
-            view.set_geometry(ResizeEdge::empty(), geo);
         }
+        view.set_geometry(comp.edges, geo);
         true
     } else {
         false
