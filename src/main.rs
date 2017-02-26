@@ -93,8 +93,8 @@ extern fn on_view_created(view: WlcView) -> bool {
 
 extern fn on_view_destroyed(view: WlcView) {
     let views = view.get_output().get_views();
-    if !views.is_empty() {
-        views.last().unwrap().focus();
+    if let Some(lastview) = views.last() {
+        lastview.focus();
     }
     render_output(view.get_output());
 }
@@ -125,7 +125,7 @@ extern fn on_keyboard_key(view: WlcView, _time: u32, mods: &KeyboardModifiers, k
                 let views = view.get_output().get_views();
                 if views.len() < 2 { return true }
                 views.last().unwrap().focus();
-            },
+            }
             keysyms::KEY_Up | keysyms::KEY_Right => {
                 let views = view.get_output().get_views();
                 if views.len() < 2 { return true }
@@ -137,7 +137,7 @@ extern fn on_keyboard_key(view: WlcView, _time: u32, mods: &KeyboardModifiers, k
                 terminate();
             }
             keysyms::KEY_q => {
-                Command::new("/usr/local/bin/wayst").spawn().expect("Error executing wayst");
+                Command::new("/usr/local/bin/wayst").spawn().expect("Error executing terminal");
             }
             _ => return false
         }
