@@ -4,5 +4,5 @@ version = "0.1.0"
 authors = ["serprex <>"]
 
 [dependencies]
-rustwlc = "0.5"
+rustwlc = "0.6"
 lazy_static = "0.2"
